@@ -12,8 +12,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+
+// Conditionally import WebView (not available on web)
+let WebView: any = null;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
 import { useCreateStore, useAuthStore } from '../../lib/stores';
@@ -370,16 +375,24 @@ export default function CreateScreen() {
         </View>
 
         <View style={styles.webviewContainer}>
-          <WebView
-            source={{ uri: currentApp.live_url! }}
-            style={styles.webview}
-            startInLoadingState
-            renderLoading={() => (
-              <View style={styles.webviewLoading}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-              </View>
-            )}
-          />
+          {Platform.OS === 'web' ? (
+            <iframe
+              src={currentApp.live_url!}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="App Preview"
+            />
+          ) : (
+            <WebView
+              source={{ uri: currentApp.live_url! }}
+              style={styles.webview}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={styles.webviewLoading}>
+                  <ActivityIndicator size="large" color={Colors.primary} />
+                </View>
+              )}
+            />
+          )}
         </View>
 
         <View style={styles.liveUrl}>
