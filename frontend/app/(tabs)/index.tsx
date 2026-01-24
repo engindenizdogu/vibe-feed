@@ -1,18 +1,16 @@
 import { useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  FlatList as RNFlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppCard } from '../../components/AppCard';
 import { getApps, likeApp, unlikeApp } from '../../lib/api';
-import { Colors, Spacing, FontSize } from '../../constants/theme';
+import { Colors } from '../../constants/theme';
 import type { App } from '../../lib/types';
+import { View, Text } from '../../src/tw';
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -92,7 +90,7 @@ export default function FeedScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: Colors.background }}>
         <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
@@ -100,25 +98,33 @@ export default function FeedScreen() {
 
   if (isError) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Failed to load apps</Text>
-        <Text style={styles.errorSubtext}>Pull down to retry</Text>
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: Colors.background }}>
+        <Text className="text-lg font-semibold" style={{ color: Colors.error, fontSize: 18 }}>
+          Failed to load apps
+        </Text>
+        <Text className="text-base mt-2" style={{ color: Colors.textSecondary, fontSize: 16, marginTop: 8 }}>
+          Pull down to retry
+        </Text>
       </View>
     );
   }
 
   if (apps.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>No apps yet</Text>
-        <Text style={styles.emptySubtext}>Be the first to create one!</Text>
+      <View className="flex-1 justify-center items-center" style={{ backgroundColor: Colors.background }}>
+        <Text className="text-xl font-semibold" style={{ color: Colors.text, fontSize: 20 }}>
+          No apps yet
+        </Text>
+        <Text className="text-base mt-2" style={{ color: Colors.textSecondary, fontSize: 16, marginTop: 8 }}>
+          Be the first to create one!
+        </Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
+    <View className="flex-1" style={{ backgroundColor: Colors.background }}>
+      <RNFlatList
         data={apps}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
@@ -128,7 +134,7 @@ export default function FeedScreen() {
             onLike={() => handleLike(item)}
           />
         )}
-        contentContainerStyle={styles.listContent}
+        style={{ backgroundColor: Colors.background }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -140,52 +146,12 @@ export default function FeedScreen() {
         onEndReachedThreshold={0.5}
         ListFooterComponent={
           isFetchingNextPage ? (
-            <ActivityIndicator
-              style={styles.loadingFooter}
-              color={Colors.primary}
-            />
+            <View style={{ paddingVertical: 24 }}>
+              <ActivityIndicator color={Colors.primary} />
+            </View>
           ) : null
         }
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    paddingVertical: Spacing.sm,
-  },
-  loadingFooter: {
-    paddingVertical: Spacing.lg,
-  },
-  errorText: {
-    color: Colors.error,
-    fontSize: FontSize.lg,
-    fontWeight: '600',
-  },
-  errorSubtext: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.md,
-    marginTop: Spacing.sm,
-  },
-  emptyText: {
-    color: Colors.text,
-    fontSize: FontSize.xl,
-    fontWeight: '600',
-  },
-  emptySubtext: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.md,
-    marginTop: Spacing.sm,
-  },
-});

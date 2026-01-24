@@ -1,16 +1,16 @@
 export const Colors = {
-  primary: '#8B5CF6',
-  secondary: '#06B6D4',
-  background: '#0F0F0F',
-  surface: '#1A1A1A',
-  surfaceLight: '#2A2A2A',
+  primary: '#3B82F6',
+  secondary: '#60A5FA',
+  background: '#0A0A0A',
+  surface: '#171717',
+  surfaceLight: '#262626',
   text: '#FFFFFF',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  success: '#10B981',
+  textSecondary: '#A3A3A3',
+  textMuted: '#737373',
+  success: '#22C55E',
   error: '#EF4444',
-  warning: '#F59E0B',
-  border: '#374151',
+  warning: '#FB923C',
+  border: '#27272A',
 };
 
 export const Spacing = {

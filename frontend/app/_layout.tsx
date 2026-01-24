@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Colors } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../lib/stores';
+import '../src/global.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
