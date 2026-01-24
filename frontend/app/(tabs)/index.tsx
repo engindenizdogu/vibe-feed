@@ -1,16 +1,20 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
   RefreshControl,
   ActivityIndicator,
   Dimensions,
   Platform,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Fonts } from '../../constants/theme';
+import { Colors, Fonts, Spacing, BorderRadius } from '../../constants/theme';
 import { getApps, likeApp, unlikeApp } from '../../lib/api';
 import type { App } from '../../lib/types';
-import { View, Text, ScrollView, Pressable } from '../../src/tw';
 import { useAuthStore } from '../../lib/stores';
 
 // Conditionally import WebView (not available on web)
@@ -37,9 +41,10 @@ interface FeedItemProps {
   app: App;
   onLike: () => void;
   onPress: () => void;
+  onComment: () => void;
 }
 
-function FeedItem({ app, onLike, onPress }: FeedItemProps) {
+function FeedItem({ app, onLike, onPress, onComment }: FeedItemProps) {
   const [isWebViewLoading, setIsWebViewLoading] = useState(true);
 
   // Accent colors for variety
@@ -48,18 +53,14 @@ function FeedItem({ app, onLike, onPress }: FeedItemProps) {
   const accentColor = accentColors[colorIndex];
 
   return (
-    <View className="mb-6">
+    <View style={styles.feedItem}>
       {/* Main container with app preview */}
       <Pressable onPress={onPress}>
         <View
-          className="w-full relative overflow-hidden"
-          style={{
-            backgroundColor: '#1A1A1A',
-            aspectRatio: 4/5,
-            borderRadius: 8,
-            borderWidth: 2,
-            borderColor: accentColor + '40',
-          }}
+          style={[
+            styles.previewContainer,
+            { borderColor: accentColor + '40' }
+          ]}
         >
           {/* Live app preview */}
           {app.live_url ? (
@@ -85,21 +86,18 @@ function FeedItem({ app, onLike, onPress }: FeedItemProps) {
                   javaScriptEnabled={true}
                 />
                 {isWebViewLoading && (
-                  <View
-                    className="absolute inset-0 items-center justify-center"
-                    style={{ backgroundColor: '#1A1A1A' }}
-                  >
+                  <View style={styles.webviewLoading}>
                     <ActivityIndicator size="large" color={accentColor} />
                   </View>
                 )}
               </>
             ) : (
-              <View className="flex-1 items-center justify-center">
+              <View style={styles.noPreview}>
                 <Text style={{ color: Colors.textSecondary }}>Preview not available</Text>
               </View>
             )
           ) : (
-            <View className="flex-1 items-center justify-center">
+            <View style={styles.noPreview}>
               <Ionicons name="cube-outline" size={56} color={accentColor} />
               <Text style={{ color: Colors.textSecondary, marginTop: 16 }}>No preview available</Text>
             </View>
@@ -107,11 +105,10 @@ function FeedItem({ app, onLike, onPress }: FeedItemProps) {
 
           {/* Status badge */}
           <View
-            className="absolute top-3 left-3 px-3 py-1"
-            style={{
-              backgroundColor: app.status === 'live' ? '#10B981' : accentColor,
-              borderRadius: 4,
-            }}
+            style={[
+              styles.statusBadge,
+              { backgroundColor: app.status === 'live' ? '#10B981' : accentColor }
+            ]}
           >
             <Text
               style={{
@@ -128,9 +125,9 @@ function FeedItem({ app, onLike, onPress }: FeedItemProps) {
       </Pressable>
 
       {/* Metadata section */}
-      <View className="px-4 py-3">
+      <View style={styles.metadataSection}>
         {/* User info */}
-        <View className="flex-row items-center mb-2">
+        <View style={styles.userInfoRow}>
           <View
             style={{
               backgroundColor: Colors.surfaceLight,
@@ -200,6 +197,16 @@ function FeedItem({ app, onLike, onPress }: FeedItemProps) {
             </Text>
           </Pressable>
 
+          <Pressable
+            onPress={onComment}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <Ionicons name="chatbubble-outline" size={22} color={Colors.textSecondary} />
+            <Text style={{ color: Colors.textSecondary, fontSize: 14, marginLeft: 4 }}>
+              Comment
+            </Text>
+          </Pressable>
+
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="eye-outline" size={24} color={Colors.textSecondary} />
             <Text style={{ color: Colors.textSecondary, fontSize: 14, marginLeft: 4 }}>
@@ -233,7 +240,7 @@ export default function FeedScreen() {
   const fetchApps = useCallback(async () => {
     try {
       setError(null);
-      const result = await getApps(1, 10);
+      const result = await getApps(1, 100);
       console.log('Fetched apps:', result);
       setApps(result.apps || []);
     } catch (err) {
@@ -262,18 +269,43 @@ export default function FeedScreen() {
       return;
     }
 
+    // Optimistic update - update UI immediately
+    setApps(prevApps => prevApps.map(a => {
+      if (a.id === app.id) {
+        return {
+          ...a,
+          is_liked: !a.is_liked,
+          likes_count: a.is_liked ? a.likes_count - 1 : a.likes_count + 1,
+        };
+      }
+      return a;
+    }));
+
     try {
       if (app.is_liked) {
         await unlikeApp(app.id);
       } else {
         await likeApp(app.id);
       }
-      // Refresh the feed to get updated like status
-      fetchApps();
     } catch (err) {
       console.error('Failed to like/unlike:', err);
+      // Revert on error
+      setApps(prevApps => prevApps.map(a => {
+        if (a.id === app.id) {
+          return {
+            ...a,
+            is_liked: app.is_liked,
+            likes_count: app.likes_count,
+          };
+        }
+        return a;
+      }));
     }
-  }, [user, fetchApps]);
+  }, [user]);
+
+  const handleComment = useCallback((app: App) => {
+    router.push(`/app/${app.id}`);
+  }, [router]);
 
   const handlePress = useCallback((app: App) => {
     if (app.live_url) {
@@ -288,7 +320,7 @@ export default function FeedScreen() {
   // Loading state
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center" style={{ backgroundColor: Colors.background }}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={{ color: Colors.textSecondary, marginTop: 16 }}>Loading feed...</Text>
       </View>
@@ -298,7 +330,7 @@ export default function FeedScreen() {
   // Error state
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center px-4" style={{ backgroundColor: Colors.background }}>
+      <View style={styles.centerContainer}>
         <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
         <Text style={{ color: Colors.error, fontSize: 16, marginTop: 16, textAlign: 'center' }}>
           {error}
@@ -322,7 +354,7 @@ export default function FeedScreen() {
   // Empty state
   if (apps.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center px-4" style={{ backgroundColor: Colors.background }}>
+      <View style={styles.centerContainer}>
         <Ionicons name="apps-outline" size={64} color={Colors.textMuted} />
         <Text style={{ color: Colors.text, fontSize: 20, fontFamily: Fonts.bold, marginTop: 16 }}>
           No apps yet
@@ -347,10 +379,10 @@ export default function FeedScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: Colors.background }}>
+    <View style={styles.container}>
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingVertical: 16 }}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -365,9 +397,74 @@ export default function FeedScreen() {
             app={app}
             onLike={() => handleLike(app)}
             onPress={() => handlePress(app)}
+            onComment={() => handleComment(app)}
           />
         ))}
       </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: 16,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    paddingHorizontal: 16,
+  },
+  feedItem: {
+    marginBottom: 24,
+  },
+  previewContainer: {
+    width: '100%',
+    aspectRatio: 4/5,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    borderWidth: 2,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  webviewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+  },
+  noPreview: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  metadataSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  userInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+});

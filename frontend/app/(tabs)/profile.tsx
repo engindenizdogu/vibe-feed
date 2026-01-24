@@ -202,6 +202,7 @@ export default function ProfileScreen() {
   }
 
   const publishedApps = userApps.filter((app) => app.is_published);
+  const allApps = userApps; // Show all apps, not just published
   const likedApps: App[] = []; // TODO: Fetch from API
 
   return (
@@ -224,7 +225,7 @@ export default function ProfileScreen() {
           {/* Stats */}
           <View style={styles.stats}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{publishedApps.length}</Text>
+              <Text style={styles.statValue}>{allApps.length}</Text>
               <Text style={styles.statLabel}>Apps</Text>
             </View>
             <View style={styles.statDivider} />
@@ -246,7 +247,7 @@ export default function ProfileScreen() {
             <Text
               style={[styles.tabText, activeTab === 'apps' && styles.activeTabText]}
             >
-              My Apps
+              My Apps ({allApps.length})
             </Text>
           </Pressable>
           <Pressable
@@ -264,9 +265,9 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* App Grid */}
+        {/* App List */}
         <View style={styles.appsGrid}>
-          {(activeTab === 'apps' ? publishedApps : likedApps).length === 0 ? (
+          {(activeTab === 'apps' ? allApps : likedApps).length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons
                 name={activeTab === 'apps' ? 'cube-outline' : 'heart-outline'}
@@ -275,32 +276,56 @@ export default function ProfileScreen() {
               />
               <Text style={styles.emptyText}>
                 {activeTab === 'apps'
-                  ? "You haven't published any apps yet"
+                  ? "You haven't created any apps yet"
                   : "You haven't liked any apps yet"}
               </Text>
+              {activeTab === 'apps' && (
+                <Pressable
+                  style={styles.createButton}
+                  onPress={() => router.push('/create')}
+                >
+                  <Text style={styles.createButtonText}>Create your first app</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
-            <View style={styles.grid}>
-              {(activeTab === 'apps' ? publishedApps : likedApps).map((app) => (
+            <View style={styles.appList}>
+              {(activeTab === 'apps' ? allApps : likedApps).map((app) => (
                 <Pressable
                   key={app.id}
-                  style={styles.gridItem}
+                  style={styles.appCard}
                   onPress={() => handleAppPress(app)}
                 >
-                  {app.thumbnail_url ? (
-                    <Image
-                      source={{ uri: app.thumbnail_url }}
-                      style={styles.gridThumbnail}
-                    />
-                  ) : (
-                    <View style={styles.gridPlaceholder}>
-                      <Ionicons
-                        name="cube-outline"
-                        size={24}
-                        color={Colors.textMuted}
-                      />
+                  <View style={styles.appCardContent}>
+                    <View style={styles.appIconContainer}>
+                      <Ionicons name="cube" size={24} color={Colors.primary} />
                     </View>
-                  )}
+                    <View style={styles.appInfo}>
+                      <Text style={styles.appTitle} numberOfLines={1}>
+                        {app.title || 'Untitled App'}
+                      </Text>
+                      <Text style={styles.appPrompt} numberOfLines={2}>
+                        {app.prompt || app.description || 'No description'}
+                      </Text>
+                      <View style={styles.appMeta}>
+                        <View style={[
+                          styles.statusBadge,
+                          app.is_published ? styles.statusPublished : styles.statusDraft
+                        ]}>
+                          <Text style={styles.statusText}>
+                            {app.is_published ? 'Published' : 'Draft'}
+                          </Text>
+                        </View>
+                        {app.is_published && (
+                          <View style={styles.likesContainer}>
+                            <Ionicons name="heart" size={12} color={Colors.secondary} />
+                            <Text style={styles.likesText}>{app.likes_count}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+                  </View>
                 </Pressable>
               ))}
             </View>
@@ -523,6 +548,87 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  createButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+  },
+  createButtonText: {
+    color: Colors.background,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semibold,
+  },
+  appList: {
+    gap: Spacing.sm,
+  },
+  appCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  appCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  appIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  appInfo: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  appTitle: {
+    color: Colors.text,
+    fontSize: FontSize.md,
+    fontFamily: Fonts.semibold,
+  },
+  appPrompt: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    lineHeight: 18,
+  },
+  appMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  statusBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+  },
+  statusPublished: {
+    backgroundColor: Colors.success + '20',
+  },
+  statusDraft: {
+    backgroundColor: Colors.warning + '20',
+  },
+  statusText: {
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.medium,
+    color: Colors.text,
+  },
+  likesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  likesText: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.xs,
   },
   settingsSection: {
     padding: Spacing.md,

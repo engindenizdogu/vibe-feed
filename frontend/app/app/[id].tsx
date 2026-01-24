@@ -10,10 +10,16 @@ import {
   ActivityIndicator,
   Share,
   Linking,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+
+// Conditionally import WebView (not available on web)
+let WebView: any = null;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Colors, Spacing, BorderRadius, FontSize, Fonts } from '../../constants/theme';
 import { getApp, getComments, addComment, likeApp, unlikeApp } from '../../lib/api';
@@ -141,16 +147,28 @@ export default function AppDetailScreen() {
         {/* WebView */}
         {showWebView && app.live_url && (
           <View style={styles.webviewContainer}>
-            <WebView
-              source={{ uri: app.live_url }}
-              style={styles.webview}
-              startInLoadingState
-              renderLoading={() => (
-                <View style={styles.webviewLoading}>
-                  <ActivityIndicator size="large" color={Colors.primary} />
-                </View>
-              )}
-            />
+            {Platform.OS === 'web' ? (
+              <iframe
+                src={app.live_url}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title={app.title || 'App Preview'}
+              />
+            ) : WebView ? (
+              <WebView
+                source={{ uri: app.live_url }}
+                style={styles.webview}
+                startInLoadingState
+                renderLoading={() => (
+                  <View style={styles.webviewLoading}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                  </View>
+                )}
+              />
+            ) : (
+              <View style={styles.webviewLoading}>
+                <Text style={{ color: Colors.textSecondary }}>Preview not available</Text>
+              </View>
+            )}
           </View>
         )}
 
