@@ -43,7 +43,17 @@ export async function getApp(id: string): Promise<App> {
   return apiRequest(`/api/v1/apps/${id}`);
 }
 
-export async function createApp(prompt: string): Promise<{ app_id: string; job_id: string }> {
+// Response from create endpoint (MVP-style synchronous)
+export interface CreateAppResponse {
+  app_id: string;
+  title: string;
+  description: string;
+  live_url: string;
+  vibe_analysis: Record<string, any>;
+  tags: string[];
+}
+
+export async function createApp(prompt: string): Promise<CreateAppResponse> {
   return apiRequest('/api/v1/apps', {
     method: 'POST',
     body: JSON.stringify({ prompt }),

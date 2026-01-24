@@ -1,6 +1,12 @@
+"""
+Apps API endpoints.
+Handles app creation, listing, publishing, and interactions.
+"""
+
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pydantic import BaseModel
 from supabase import Client
 
 from ..core.deps import get_supabase, get_current_user, get_optional_user
@@ -9,11 +15,21 @@ from ..models.schemas import (
     AppPublish,
     AppResponse,
     AppListResponse,
-    AppCreateResponse,
 )
-from ..services.generation import queue_generation_job
+from ..services.agents import analyze_vibe, generate_code
+from ..services.daytona_manager import daytona_manager
 
 router = APIRouter(prefix="/apps", tags=["apps"])
+
+
+# Response model for create endpoint (like MVP)
+class AppCreateResponse(BaseModel):
+    app_id: str
+    title: str
+    description: str
+    live_url: str
+    vibe_analysis: dict
+    tags: List[str]
 
 
 def format_app_response(app: dict, user: Optional[dict] = None, is_liked: bool = False) -> dict:
@@ -38,7 +54,7 @@ async def list_apps(
     """List published apps for the feed."""
     offset = (page - 1) * limit
 
-    # Get apps with user info (explicitly use the apps_user_id_fkey relationship)
+    # Get apps with user info
     result = (
         supabase.table("apps")
         .select("*, users!apps_user_id_fkey(username, avatar_url)")
@@ -122,34 +138,85 @@ async def create_app(
     supabase: Annotated[Client, Depends(get_supabase)],
     current_user: Annotated[dict, Depends(get_current_user)],
 ):
-    """Create a new app from a prompt."""
-    # Create app record
-    app_id = str(uuid.uuid4())
-    job_id = str(uuid.uuid4())
+    """
+    Create a new vibe-coded app from user prompt.
 
-    result = (
-        supabase.table("apps")
-        .insert(
-            {
+    Flow (exactly like MVP):
+    1. Analyze vibe with AI
+    2. Generate code with AI
+    3. Deploy to Daytona
+    4. Save to database
+    5. Return app details
+    """
+    try:
+        user_prompt = data.prompt.strip()
+
+        if not user_prompt:
+            raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+
+        print(f"\n🎨 Creating vibe app: '{user_prompt[:50]}...'")
+
+        # Step 1: Analyze vibe
+        print("📊 Analyzing vibe...")
+        vibe_analysis = analyze_vibe(user_prompt)
+        print(f"✅ Vibe analyzed: {vibe_analysis.get('title')}")
+
+        # Step 2: Generate code
+        print("💻 Generating code...")
+        code_files = generate_code(vibe_analysis, user_prompt)
+        print(f"✅ Code generated ({len(code_files)} files)")
+
+        # Step 3: Deploy to Daytona
+        print("🚀 Deploying to Daytona...")
+        deployment = daytona_manager.deploy_flask_app(
+            app_name=vibe_analysis.get("title", "vibe-app"),
+            code_files=code_files
+        )
+        print(f"✅ Deployed: {deployment['url']}")
+
+        # Step 4: Save to database
+        app_id = str(uuid.uuid4())
+
+        result = (
+            supabase.table("apps")
+            .insert({
                 "id": app_id,
                 "user_id": current_user["id"],
-                "prompt": data.prompt,
-                "status": "pending",
-            }
+                "prompt": user_prompt,
+                "title": vibe_analysis.get("title", "Untitled Vibe App"),
+                "description": vibe_analysis.get("description", user_prompt[:200]),
+                "live_url": deployment["url"],
+                "daytona_workspace_id": deployment["workspace_id"],
+                "status": "live",
+                "is_published": False,
+                "likes_count": 0,
+                "views_count": 0,
+            })
+            .execute()
         )
-        .execute()
-    )
 
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create app",
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save app to database",
+            )
+
+        print(f"✅ App created successfully! ID: {app_id}")
+
+        return AppCreateResponse(
+            app_id=app_id,
+            title=vibe_analysis.get("title", "Untitled Vibe App"),
+            description=vibe_analysis.get("description", user_prompt[:200]),
+            live_url=deployment["url"],
+            vibe_analysis=vibe_analysis,
+            tags=vibe_analysis.get("tags", [])
         )
 
-    # Queue the generation job
-    await queue_generation_job(job_id, app_id, data.prompt, current_user["id"])
-
-    return {"app_id": app_id, "job_id": job_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating app: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create app: {str(e)}")
 
 
 @router.post("/{app_id}/publish", response_model=AppResponse)
@@ -217,7 +284,9 @@ async def delete_app(
     if app["user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your app")
 
-    # TODO: Delete Daytona workspace
+    # Delete Daytona workspace if exists
+    if app.get("daytona_workspace_id"):
+        daytona_manager.delete_workspace(app["daytona_workspace_id"])
 
     # Delete app (cascades to likes and comments)
     supabase.table("apps").delete().eq("id", app_id).execute()
