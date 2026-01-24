@@ -1,16 +1,26 @@
 export const Colors = {
-  primary: '#8B5CF6',
-  secondary: '#06B6D4',
-  background: '#0F0F0F',
-  surface: '#1A1A1A',
-  surfaceLight: '#2A2A2A',
-  text: '#FFFFFF',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  success: '#10B981',
-  error: '#EF4444',
-  warning: '#F59E0B',
-  border: '#374151',
+  // Neo-Brutalism: Bold, punchy colors with stark contrast
+  primary: '#BEFF00',        // Electric lime
+  secondary: '#FF006E',      // Hot pink
+  accent: '#00F0FF',         // Bright cyan
+  background: '#000000',     // Pure black
+  surface: '#1A1A1A',        // Dark surface
+  surfaceLight: '#2A2A2A',   // Lighter surface
+  text: '#FFFFFF',           // Pure white
+  textSecondary: '#B4B4B4',  // Light gray
+  textMuted: '#666666',      // Muted gray
+  success: '#00FF94',        // Neon green
+  error: '#FF3366',          // Bright red/pink
+  warning: '#FFD600',        // Electric yellow
+  border: '#333333',         // Subtle border
+};
+
+export const Fonts = {
+  primary: 'SpaceGrotesk-Bold',
+  regular: 'SpaceGrotesk-Regular',
+  medium: 'SpaceGrotesk-Medium',
+  semibold: 'SpaceGrotesk-SemiBold',
+  bold: 'SpaceGrotesk-Bold',
 };
 
 export const Spacing = {

@@ -17,8 +17,13 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "websockets>=14.0",
-    "daytona>=0.1.0",
+    "daytona-sdk>=0.134.0",
+    "crewai>=0.86.0",
+    "crewai-tools>=0.17.0",
 ]
+
+[project.scripts]
+slop-worker = "app.services.worker:run_worker"
 
 [project.optional-dependencies]
 dev = [

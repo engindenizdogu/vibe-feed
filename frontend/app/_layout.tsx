@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View, ActivityIndicator } from 'react-native';
+import * as Font from 'expo-font';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Colors } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../lib/stores';
+import '../src/global.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +21,26 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const setUser = useAuthStore((state) => state.setUser);
   const setLoading = useAuthStore((state) => state.setLoading);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'SpaceGrotesk-Regular': require('../assets/fonts/SpaceGrotesk-Regular.ttf'),
+          'SpaceGrotesk-Medium': require('../assets/fonts/SpaceGrotesk-Medium.ttf'),
+          'SpaceGrotesk-SemiBold': require('../assets/fonts/SpaceGrotesk-SemiBold.ttf'),
+          'SpaceGrotesk-Bold': require('../assets/fonts/SpaceGrotesk-Bold.ttf'),
+        });
+        setFontsLoaded(true);
+      } catch (error) {
+        console.error('Error loading fonts:', error);
+        // Fallback: continue without custom fonts
+        setFontsLoaded(true);
+      }
+    }
+    loadFonts();
+  }, []);
 
   useEffect(() => {
     // Check initial session
@@ -51,6 +74,14 @@ export default function RootLayout() {
 
     return () => subscription.unsubscribe();
   }, [setUser, setLoading]);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

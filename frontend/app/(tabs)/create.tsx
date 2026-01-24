@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,10 +20,10 @@ if (Platform.OS !== 'web') {
   WebView = require('react-native-webview').WebView;
 }
 import { useRouter } from 'expo-router';
-import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, FontSize, Fonts } from '../../constants/theme';
 import { useCreateStore, useAuthStore } from '../../lib/stores';
-import { createApp, publishApp, connectGenerationWebSocket } from '../../lib/api';
-import type { GenerationUpdate } from '../../lib/types';
+import { createApp, publishApp } from '../../lib/api';
+import type { CreateAppResponse } from '../../lib/api';
 
 const GENERATION_STEPS = [
   { key: 'moderation', label: 'Checking prompt...' },
@@ -36,7 +36,6 @@ const GENERATION_STEPS = [
 export default function CreateScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const wsRef = useRef<WebSocket | null>(null);
 
   const {
     prompt,
@@ -44,13 +43,11 @@ export default function CreateScreen() {
     progress,
     currentApp,
     error,
-    jobId,
     setPrompt,
     setState,
     setProgress,
     setCurrentApp,
     setError,
-    setJobId,
     reset,
   } = useCreateStore();
 
@@ -76,78 +73,52 @@ export default function CreateScreen() {
       console.log('Starting generation...');
       setState('generating');
       setError(null);
-      setProgress({ step: 'moderation', percent: 0, message: 'Starting...' });
+      setProgress({ step: 'generating', percent: 50, message: 'Creating your app... This may take up to 30 seconds.' });
 
       console.log('Calling createApp API...');
-      const { app_id, job_id } = await createApp(prompt.trim());
-      console.log('Got response:', { app_id, job_id });
-      setJobId(job_id);
+      // Synchronous API call - waits for the full generation + deployment
+      const result = await createApp(prompt.trim());
+      console.log('Got response:', result);
 
-      // Connect to WebSocket for real-time updates
-      wsRef.current = connectGenerationWebSocket(
-        job_id,
-        (data: GenerationUpdate) => {
-          if (data.type === 'status_update') {
-            setProgress({
-              step: data.step as any,
-              percent: data.percent || 0,
-              message: data.message || '',
-            });
-          } else if (data.type === 'completed') {
-            setCurrentApp({
-              id: data.app_id!,
-              user_id: user.id,
-              prompt: prompt,
-              title: null,
-              description: null,
-              thumbnail_url: data.thumbnail_url || null,
-              screenshot_url: null,
-              live_url: data.live_url!,
-              status: 'live',
-              is_published: false,
-              likes_count: 0,
-              views_count: 0,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            });
-            setState('live');
-            setProgress(null);
-          } else if (data.type === 'failed') {
-            setError(data.error_message || 'Generation failed');
-            setState('error');
-            setProgress(null);
-          }
-        },
-        (err) => {
-          console.error('WebSocket error:', err);
-          setError('Connection lost. Please try again.');
-          setState('error');
-        },
-        () => {
-          wsRef.current = null;
-        }
-      );
+      // Set the current app with the returned data
+      setCurrentApp({
+        id: result.app_id,
+        user_id: user.id,
+        prompt: prompt,
+        title: result.title,
+        description: result.description,
+        thumbnail_url: null,
+        screenshot_url: null,
+        live_url: result.live_url,
+        status: 'live',
+        is_published: false,
+        likes_count: 0,
+        views_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      setState('live');
+      setProgress(null);
+
     } catch (err) {
       console.error('Generation error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start generation';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create app';
       setError(errorMessage);
       setState('error');
+      setProgress(null);
       if (Platform.OS === 'web') {
         window.alert('Error: ' + errorMessage);
       }
     }
-  }, [prompt, user, setState, setError, setProgress, setJobId, setCurrentApp]);
+  }, [prompt, user, setState, setError, setProgress, setCurrentApp]);
 
   const handleCancel = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
+    // Note: With synchronous API, cancel just resets the UI state
+    // The server request cannot be cancelled once started
     setState('idle');
     setProgress(null);
     setError(null);
-    setJobId(null);
-  }, [setState, setProgress, setError, setJobId]);
+  }, [setState, setProgress, setError]);
 
   const handleShare = useCallback(async () => {
     if (!currentApp?.live_url) return;
@@ -204,13 +175,7 @@ export default function CreateScreen() {
     setError(null);
   }, [setState, setError]);
 
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
+  // No cleanup needed - synchronous API doesn't use WebSocket
 
   // IDLE State
   if (state === 'idle') {
@@ -447,7 +412,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: Colors.text,
     fontSize: FontSize.xxl,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
     marginTop: Spacing.md,
   },
   headerSubtitle: {
@@ -492,7 +457,7 @@ const styles = StyleSheet.create({
   generateButtonText: {
     color: Colors.text,
     fontSize: FontSize.lg,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   examplesContainer: {
     marginTop: Spacing.xl,
@@ -546,7 +511,7 @@ const styles = StyleSheet.create({
   progressPercent: {
     color: Colors.text,
     fontSize: FontSize.md,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     marginLeft: Spacing.md,
     width: 45,
   },
@@ -568,7 +533,7 @@ const styles = StyleSheet.create({
   },
   stepTextCurrent: {
     color: Colors.text,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   cancelButton: {
     alignSelf: 'center',
@@ -587,7 +552,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: Colors.error,
     fontSize: FontSize.xl,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     marginTop: Spacing.md,
   },
   errorMessage: {
@@ -612,7 +577,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: Colors.text,
     fontSize: FontSize.md,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   editButton: {
     borderWidth: 1,
@@ -671,6 +636,6 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: Colors.text,
     fontSize: FontSize.xs,
-    fontWeight: '500',
+    fontFamily: Fonts.medium,
   },
 });
