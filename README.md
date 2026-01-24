@@ -2,6 +2,47 @@
 
 AI-generated app platform. Describe an app → Claude builds it → Deploy instantly.
 
+## 1. Problem
+
+The problem we’re solving is that a lot of people are vibe-coding apps and games, but there’s no simple way to discover what your friends are making or to share it easily. You can post on Twitter, but finding those projects later is noisy and full of friction. This feed makes it effortless to discover fun games and apps your friends are building and to share your own work in one focused place.
+
+## 2. Constraints & Assumptions
+
+The main challenge is coordinating two AI agents: one for planning (what to build) and one for execution (actually writing code). We assume Claude is capable enough to write functional HTML/CSS/JS apps from prompts. We also assume Daytona sandboxes provide stable environments where agents can safely run code. The system needs real-time progress updates, which requires WebSocket coordination between agents, job queue, and frontend.
+
+## 3. Proposed Solution
+
+A two-agent architecture where a Project Manager (backend) orchestrates a Developer Agent (Daytona sandbox). The Project Manager analyzes user prompts, breaks them into tasks, and delegates to the Developer Agent running Claude Agent SDK. This separation lets us iterate on planning logic without redeploying sandboxes, and keeps dangerous code execution isolated. Trade-off: adds complexity and latency versus single-agent approaches, but gives better control and safety.
+
+## 4. System Architecture
+
+**Frontend**: React Native (Expo) mobile app with social feed UI, WebSocket for live generation updates, Supabase for auth and data.
+
+**Backend**: FastAPI server with job queue. Project Manager Agent runs here using Anthropic's API directly. When a user submits a prompt, it's queued and picked up by a worker process.
+
+**Sandbox**: Daytona container with Claude Agent SDK. Developer Agent has file operations (write, edit, read) and bash execution. Creates apps in `/home/daytona`, starts HTTP server on port 80, returns public preview URL.
+
+**Flow**: User prompt → Job queue → Worker picks job → Project Manager analyzes → Delegates via `<developer_task>` tags → Developer Agent creates files → Starts server → Returns URL → Project Manager verifies → Job complete.
+
+**Failure modes**: If Developer Agent crashes, Project Manager marks job failed. If sandbox times out (3min+), we return error. If preview URL is inaccessible, Project Manager requests fixes.
+
+## 5. Ideal End State
+
+Production needs rate limiting (per-user sandbox quotas), better content moderation (currently just keyword filtering), and sandbox pooling to reduce cold start times. Database would need indexes on `created_at` for feed queries. Preview URLs should persist indefinitely, which means tracking sandbox lifecycle and potentially archiving static assets to S3 if Daytona bills per running container. First bottleneck: concurrent Anthropic API requests (could hit rate limits).
+
+## 6. Hackathon Scope & Execution
+
+Built in 24h: full two-agent system, mobile app with feed/create/profile screens, WebSocket progress updates, basic content moderation, integration with Daytona and Anthropic APIs. What's stubbed: thumbnail generation (marked TODO), comprehensive moderation (only keyword-based), user-initiated sandbox cleanup. This slice demonstrates the core idea because you can actually type a prompt on mobile, watch the agents work in real-time, and get a live URL back.
+
+## 7. How to Run / Demo
+
+See Quick Start section below.
+
+## 8. Notes on AI Usage
+
+See [AI.md](AI.md) for full disclosure of AI-assisted files. This project uses Claude extensively for both runtime functionality (the agents themselves) and development assistance. The Project Manager and Developer Agent prompts were hand-written to encode our architectural decisions. Core logic like the two-agent orchestration, Daytona integration, and WebSocket progress tracking were designed and implemented by us with AI used as an implementation accelerator.
+
+
 ## Architecture
 
 ```
@@ -39,7 +80,6 @@ AI-generated app platform. Describe an app → Claude builds it → Deploy insta
 
 - Node.js 18+
 - Python 3.11+
-- Redis
 - Expo Go app (for mobile testing)
 - Daytona API key (from https://app.daytona.io)
 - Anthropic API key
@@ -76,20 +116,9 @@ SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 SUPABASE_SERVICE_KEY=<service role key>
 ANTHROPIC_API_KEY=<your key>
 DAYTONA_API_KEY=<your key>
-REDIS_URL=redis://localhost:6379
 ```
 
-### 3. Start Redis
-
-```bash
-# macOS
-brew services start redis
-
-# Docker
-docker run -d -p 6379:6379 redis
-```
-
-### 4. Run
+### 3. Run
 
 ```bash
 # Terminal 1: Backend API
@@ -158,7 +187,5 @@ supabase/              Database migrations
 ## Troubleshooting
 
 **Daytona errors**: Ensure `DAYTONA_API_KEY` is set correctly
-
-**Redis connection**: Make sure Redis is running on port 6379
 
 **Sandbox timeout**: Generation can take 1-3 minutes for complex apps
