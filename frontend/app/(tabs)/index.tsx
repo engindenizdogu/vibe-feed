@@ -74,79 +74,71 @@ function FeedItem({ app, onLike, onPress, onComment }: FeedItemProps) {
         isHovered && styles.feedCardHovered,
       ]}>
         {/* Main container with app preview */}
-        <Pressable onPress={onPress}>
+        <View
+          style={[
+            styles.previewContainer,
+            { borderColor: isHovered ? accentColor : 'rgba(255,255,255,0.1)' }
+          ]}
+        >
+          {/* Live app preview */}
+          {app.live_url ? (
+            Platform.OS === 'web' ? (
+              <iframe
+                src={app.live_url}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  borderRadius: 8,
+                }}
+                title={app.title || 'App Preview'}
+              />
+            ) : (
+              <Pressable onPress={onPress} style={{ flex: 1 }}>
+                {WebView ? (
+                  <>
+                    <WebView
+                      source={{ uri: app.live_url }}
+                      style={{ flex: 1, borderRadius: 8 }}
+                      onLoadStart={() => setIsWebViewLoading(true)}
+                      onLoadEnd={() => setIsWebViewLoading(false)}
+                      scrollEnabled={false}
+                      javaScriptEnabled={true}
+                    />
+                    {isWebViewLoading && (
+                      <View style={styles.webviewLoading}>
+                        <ActivityIndicator size="large" color={accentColor} />
+                      </View>
+                    )}
+                  </>
+                ) : (
+                  <View style={styles.noPreview}>
+                    <Text style={{ color: Colors.textSecondary }}>Preview not available</Text>
+                  </View>
+                )}
+              </Pressable>
+            )
+          ) : (
+            <View style={styles.noPreview}>
+              <Ionicons name="cube-outline" size={48} color={accentColor} />
+              <Text style={{ color: Colors.textSecondary, marginTop: 12 }}>No preview</Text>
+            </View>
+          )}
+
+          {/* Status badge */}
           <View
             style={[
-              styles.previewContainer,
-              { borderColor: isHovered ? accentColor : 'rgba(255,255,255,0.1)' }
+              styles.statusBadge,
+              { backgroundColor: app.status === 'live' ? '#10B981' : accentColor }
             ]}
           >
-            {/* Live app preview */}
-            {app.live_url ? (
-              Platform.OS === 'web' ? (
-                <iframe
-                  src={app.live_url}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    borderRadius: 8,
-                    pointerEvents: 'none',
-                  }}
-                  title={app.title || 'App Preview'}
-                />
-              ) : WebView ? (
-                <>
-                  <WebView
-                    source={{ uri: app.live_url }}
-                    style={{ flex: 1, borderRadius: 8 }}
-                    onLoadStart={() => setIsWebViewLoading(true)}
-                    onLoadEnd={() => setIsWebViewLoading(false)}
-                    scrollEnabled={false}
-                    javaScriptEnabled={true}
-                  />
-                  {isWebViewLoading && (
-                    <View style={styles.webviewLoading}>
-                      <ActivityIndicator size="large" color={accentColor} />
-                    </View>
-                  )}
-                </>
-              ) : (
-                <View style={styles.noPreview}>
-                  <Text style={{ color: Colors.textSecondary }}>Preview not available</Text>
-                </View>
-              )
-            ) : (
-              <View style={styles.noPreview}>
-                <Ionicons name="cube-outline" size={48} color={accentColor} />
-                <Text style={{ color: Colors.textSecondary, marginTop: 12 }}>No preview</Text>
-              </View>
-            )}
-
-            {/* Status badge */}
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: app.status === 'live' ? '#10B981' : accentColor }
-              ]}
-            >
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>
-                {app.status === 'live' ? 'LIVE' : app.status?.toUpperCase() || 'PREVIEW'}
-              </Text>
-            </View>
-
-            {/* Hover overlay for web */}
-            {Platform.OS === 'web' && isHovered && (
-              <View style={styles.hoverOverlay}>
-                <View style={styles.openButton}>
-                  <Ionicons name="open-outline" size={20} color="#000" />
-                  <Text style={styles.openButtonText}>Open App</Text>
-                </View>
-              </View>
-            )}
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>
+              {app.status === 'live' ? 'LIVE' : app.status?.toUpperCase() || 'PREVIEW'}
+            </Text>
           </View>
-        </Pressable>
+
+        </View>
 
         {/* Metadata section */}
         <View style={styles.metadataSection}>
@@ -563,32 +555,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: Fonts.bold,
     letterSpacing: 0.5,
-  },
-
-  // Hover Overlay (web only)
-  hoverOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  openButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  openButtonText: {
-    color: '#000',
-    fontSize: 14,
-    fontFamily: Fonts.bold,
   },
 
   // Metadata Section
