@@ -1,6 +1,6 @@
 import { Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/theme';
+import { Colors, Fonts } from '../constants/theme';
 import type { App } from '../lib/types';
 import { View, Text, Pressable } from '../src/tw';
 
@@ -51,7 +51,7 @@ export function AppCard({ app, onPress, onLike }: AppCardProps) {
               <Ionicons name="person" size={14} color={Colors.textSecondary} />
             </View>
           )}
-          <Text className="text-sm" style={{ color: Colors.text, fontSize: 14, fontWeight: '600' }}>
+          <Text className="text-sm" style={{ color: Colors.text, fontSize: 14, fontFamily: Fonts.semibold }}>
             {app.user?.username || 'unknown'}
           </Text>
           <Text className="text-xs ml-2" style={{ color: Colors.textMuted, fontSize: 12, marginLeft: 8 }}>

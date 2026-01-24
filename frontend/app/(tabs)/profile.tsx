@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, FontSize, Fonts } from '../../constants/theme';
 import { useAuthStore } from '../../lib/stores';
 import { getUserApps } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   authTitle: {
     color: Colors.text,
     fontSize: FontSize.xxl,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
     marginTop: Spacing.lg,
   },
   authSubtitle: {
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: Colors.text,
     fontSize: FontSize.lg,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     textAlign: 'center',
   },
   header: {
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   username: {
     color: Colors.text,
     fontSize: FontSize.xl,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
     marginTop: Spacing.md,
   },
   joinDate: {
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   statValue: {
     color: Colors.text,
     fontSize: FontSize.xl,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
   },
   statLabel: {
     color: Colors.textSecondary,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   tabText: {
     color: Colors.textSecondary,
     fontSize: FontSize.md,
-    fontWeight: '500',
+    fontFamily: Fonts.medium,
   },
   activeTabText: {
     color: Colors.text,
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: Colors.textSecondary,
     fontSize: FontSize.sm,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     marginBottom: Spacing.md,
     textTransform: 'uppercase',
   },
