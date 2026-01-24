@@ -101,10 +101,10 @@ async def get_user_apps(
     if not user_result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Get apps
+    # Get apps (explicitly use the apps_user_id_fkey relationship)
     result = (
         supabase.table("apps")
-        .select("*, users(username, avatar_url)")
+        .select("*, users!apps_user_id_fkey(username, avatar_url)")
         .eq("user_id", user_id)
         .eq("is_published", True)
         .order("created_at", desc=True)

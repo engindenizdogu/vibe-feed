@@ -23,7 +23,7 @@ async def list_comments(
     # Get comments with user info
     result = (
         supabase.table("comments")
-        .select("*, users(username, avatar_url)")
+        .select("*, users!comments_user_id_fkey(username, avatar_url)")
         .eq("app_id", app_id)
         .order("created_at", desc=True)
         .execute()
@@ -70,7 +70,7 @@ async def create_comment(
                 "content": data.content,
             }
         )
-        .select("*, users(username, avatar_url)")
+        .select("*, users!comments_user_id_fkey(username, avatar_url)")
         .single()
         .execute()
     )
