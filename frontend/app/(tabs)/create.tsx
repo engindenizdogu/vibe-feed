@@ -20,7 +20,7 @@ if (Platform.OS !== 'web') {
   WebView = require('react-native-webview').WebView;
 }
 import { useRouter } from 'expo-router';
-import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, FontSize, Fonts } from '../../constants/theme';
 import { useCreateStore, useAuthStore } from '../../lib/stores';
 import { createApp, publishApp } from '../../lib/api';
 import type { CreateAppResponse } from '../../lib/api';
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: Colors.text,
     fontSize: FontSize.xxl,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
     marginTop: Spacing.md,
   },
   headerSubtitle: {
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   generateButtonText: {
     color: Colors.text,
     fontSize: FontSize.lg,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   examplesContainer: {
     marginTop: Spacing.xl,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   progressPercent: {
     color: Colors.text,
     fontSize: FontSize.md,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     marginLeft: Spacing.md,
     width: 45,
   },
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   stepTextCurrent: {
     color: Colors.text,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   cancelButton: {
     alignSelf: 'center',
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     color: Colors.error,
     fontSize: FontSize.xl,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     marginTop: Spacing.md,
   },
   errorMessage: {
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: Colors.text,
     fontSize: FontSize.md,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   editButton: {
     borderWidth: 1,
@@ -636,6 +636,6 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: Colors.text,
     fontSize: FontSize.xs,
-    fontWeight: '500',
+    fontFamily: Fonts.medium,
   },
 });

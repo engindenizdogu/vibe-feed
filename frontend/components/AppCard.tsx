@@ -1,7 +1,8 @@
-import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
+import { Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, BorderRadius, FontSize } from '../constants/theme';
+import { Colors, Fonts } from '../constants/theme';
 import type { App } from '../lib/types';
+import { View, Text, Pressable } from '../src/tw';
 
 interface AppCardProps {
   app: App;
@@ -22,136 +23,68 @@ function formatTimeAgo(dateString: string): string {
 }
 
 export function AppCard({ app, onPress, onLike }: AppCardProps) {
-  return (
-    <Pressable style={styles.container} onPress={onPress}>
-      <View style={styles.thumbnailContainer}>
-        {app.thumbnail_url ? (
-          <Image source={{ uri: app.thumbnail_url }} style={styles.thumbnail} />
-        ) : (
-          <View style={styles.placeholderThumbnail}>
-            <Ionicons name="cube-outline" size={48} color={Colors.textMuted} />
-          </View>
-        )}
-      </View>
+  // Generate a consistent color from app id for placeholder
+  const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4'];
+  const colorIndex = app.id ? parseInt(app.id.slice(0, 8), 16) % colors.length : 0;
+  const placeholderColor = colors[colorIndex];
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.userInfo}>
-            {app.user?.avatar_url ? (
-              <Image source={{ uri: app.user.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={14} color={Colors.textSecondary} />
-              </View>
-            )}
-            <Text style={styles.username}>@{app.user?.username || 'unknown'}</Text>
-            <Text style={styles.timeAgo}>{formatTimeAgo(app.created_at)}</Text>
-          </View>
+  return (
+    <Pressable className="mb-0" onPress={onPress}>
+      {/* Content area with color placeholder */}
+      <View 
+        className="w-full aspect-square"
+        style={{ backgroundColor: placeholderColor }}
+      />
+
+      {/* Info section */}
+      <View className="px-4 py-3">
+        {/* User info */}
+        <View className="flex-row items-center mb-2">
+          {app.user?.avatar_url ? (
+            <Image 
+              source={{ uri: app.user.avatar_url }} 
+              className="w-6 h-6 rounded-full mr-2"
+              style={{ width: 24, height: 24, borderRadius: 12, marginRight: 8 }}
+            />
+          ) : (
+            <View className="w-6 h-6 rounded-full mr-2 items-center justify-center" style={{ backgroundColor: Colors.surfaceLight, width: 24, height: 24, borderRadius: 12, marginRight: 8 }}>
+              <Ionicons name="person" size={14} color={Colors.textSecondary} />
+            </View>
+          )}
+          <Text className="text-sm" style={{ color: Colors.text, fontSize: 14, fontFamily: Fonts.semibold }}>
+            {app.user?.username || 'unknown'}
+          </Text>
+          <Text className="text-xs ml-2" style={{ color: Colors.textMuted, fontSize: 12, marginLeft: 8 }}>
+            {formatTimeAgo(app.created_at)}
+          </Text>
         </View>
 
-        <Text style={styles.title} numberOfLines={2}>
+        {/* Title */}
+        <Text className="text-base mb-2" numberOfLines={2} style={{ color: Colors.text, fontSize: 16, marginBottom: 8 }}>
           {app.title || app.prompt}
         </Text>
 
-        <View style={styles.actions}>
-          <Pressable style={styles.actionButton} onPress={onLike}>
+        {/* Actions */}
+        <View className="flex-row items-center gap-4">
+          <Pressable className="flex-row items-center gap-1" onPress={onLike} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons
               name={app.is_liked ? 'heart' : 'heart-outline'}
-              size={22}
+              size={24}
               color={app.is_liked ? Colors.error : Colors.textSecondary}
             />
-            <Text style={styles.actionText}>{app.likes_count}</Text>
+            <Text className="text-sm" style={{ color: Colors.textSecondary, fontSize: 14, marginLeft: 4 }}>
+              {app.likes_count}
+            </Text>
           </Pressable>
 
-          <View style={styles.actionButton}>
-            <Ionicons name="eye-outline" size={22} color={Colors.textSecondary} />
-            <Text style={styles.actionText}>{app.views_count}</Text>
+          <View className="flex-row items-center gap-1" style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="eye-outline" size={24} color={Colors.textSecondary} />
+            <Text className="text-sm" style={{ color: Colors.textSecondary, fontSize: 14, marginLeft: 4 }}>
+              {app.views_count}
+            </Text>
           </View>
         </View>
       </View>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    marginHorizontal: Spacing.md,
-    marginVertical: Spacing.sm,
-    overflow: 'hidden',
-  },
-  thumbnailContainer: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: Colors.surfaceLight,
-  },
-  thumbnail: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  placeholderThumbnail: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    padding: Spacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: Spacing.sm,
-  },
-  avatarPlaceholder: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.sm,
-  },
-  username: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-    marginRight: Spacing.sm,
-  },
-  timeAgo: {
-    color: Colors.textMuted,
-    fontSize: FontSize.xs,
-  },
-  title: {
-    color: Colors.text,
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.lg,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  actionText: {
-    color: Colors.textSecondary,
-    fontSize: FontSize.sm,
-  },
-});

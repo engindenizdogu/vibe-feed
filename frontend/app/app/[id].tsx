@@ -15,7 +15,7 @@ import { useLocalSearchParams, Stack } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Colors, Spacing, BorderRadius, FontSize } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, FontSize, Fonts } from '../../constants/theme';
 import { getApp, getComments, addComment, likeApp, unlikeApp } from '../../lib/api';
 import { useAuthStore } from '../../lib/stores';
 import type { App, Comment } from '../../lib/types';
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   username: {
     color: Colors.text,
     fontSize: FontSize.md,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
   },
   timeAgo: {
     color: Colors.textMuted,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   title: {
     color: Colors.text,
     fontSize: FontSize.xl,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
     marginBottom: Spacing.sm,
   },
   description: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   commentsTitle: {
     color: Colors.text,
     fontSize: FontSize.lg,
-    fontWeight: '600',
+    fontFamily: Fonts.semibold,
     marginBottom: Spacing.md,
   },
   commentInput: {

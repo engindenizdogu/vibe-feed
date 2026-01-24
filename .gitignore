@@ -73,3 +73,7 @@ Thumbs.db
 *.bak
 *.tmp
 *.temp
+
+# GitHub Copilot Skills (local use only)
+.github/
+install.bat
