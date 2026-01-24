@@ -50,19 +50,32 @@ export default function CreateScreen() {
   } = useCreateStore();
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) return;
+    console.log('Generate clicked, prompt:', prompt, 'user:', user);
+
+    if (!prompt.trim()) {
+      console.log('Empty prompt, returning');
+      return;
+    }
 
     if (!user) {
-      Alert.alert('Sign in required', 'Please sign in to create apps.');
+      console.log('No user, showing alert');
+      if (Platform.OS === 'web') {
+        window.alert('Please sign in to create apps.');
+      } else {
+        Alert.alert('Sign in required', 'Please sign in to create apps.');
+      }
       return;
     }
 
     try {
+      console.log('Starting generation...');
       setState('generating');
       setError(null);
       setProgress({ step: 'moderation', percent: 0, message: 'Starting...' });
 
+      console.log('Calling createApp API...');
       const { app_id, job_id } = await createApp(prompt.trim());
+      console.log('Got response:', { app_id, job_id });
       setJobId(job_id);
 
       // Connect to WebSocket for real-time updates
@@ -110,8 +123,13 @@ export default function CreateScreen() {
         }
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start generation');
+      console.error('Generation error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to start generation';
+      setError(errorMessage);
       setState('error');
+      if (Platform.OS === 'web') {
+        window.alert('Error: ' + errorMessage);
+      }
     }
   }, [prompt, user, setState, setError, setProgress, setJobId, setCurrentApp]);
 
@@ -142,24 +160,34 @@ export default function CreateScreen() {
   const handlePostToFeed = useCallback(async () => {
     if (!currentApp) return;
 
-    Alert.prompt(
-      'Post to Feed',
-      'Give your app a title:',
-      async (title) => {
-        if (!title?.trim()) return;
+    const defaultTitle = prompt.slice(0, 50);
+    let title: string | null = null;
 
-        try {
-          await publishApp(currentApp.id, title.trim());
-          Alert.alert('Success', 'Your app has been posted to the feed!');
-          reset();
-          router.push('/');
-        } catch (err) {
-          Alert.alert('Error', 'Failed to post app. Please try again.');
-        }
-      },
-      'plain-text',
-      prompt.slice(0, 50)
-    );
+    if (Platform.OS === 'web') {
+      title = window.prompt('Give your app a title:', defaultTitle);
+    } else {
+      // For native, use Alert.prompt (iOS only) or fall back to default
+      title = defaultTitle;
+    }
+
+    if (!title?.trim()) return;
+
+    try {
+      await publishApp(currentApp.id, title.trim());
+      if (Platform.OS === 'web') {
+        window.alert('Your app has been posted to the feed!');
+      } else {
+        Alert.alert('Success', 'Your app has been posted to the feed!');
+      }
+      reset();
+      router.push('/');
+    } catch (err) {
+      if (Platform.OS === 'web') {
+        window.alert('Failed to post app. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to post app. Please try again.');
+      }
+    }
   }, [currentApp, prompt, reset, router]);
 
   const handleNew = useCallback(() => {
