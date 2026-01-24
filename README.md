@@ -2,12 +2,47 @@
 
 AI-generated app platform. Describe an app → Claude builds it → Deploy instantly.
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         USER                                     │
+│                    "Make a todo app"                             │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   PROJECT MANAGER AGENT                          │
+│                   (Backend - Claude Sonnet)                      │
+│  • Analyzes user request                                         │
+│  • Breaks down into implementation tasks                         │
+│  • Delegates to Developer Agent                                  │
+│  • Reviews output and requests fixes                             │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ <developer_task>
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   DEVELOPER AGENT                                │
+│                   (Daytona Sandbox - Claude Agent SDK)           │
+│  • Creates files (HTML/CSS/JS)                                   │
+│  • Runs shell commands                                           │
+│  • Starts web server                                             │
+│  • Returns preview URL                                           │
+└─────────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+                   🌐 Live App URL
+          https://80-xxx.proxy.daytona.works
+```
+
 ## Prerequisites
 
 - Node.js 18+
 - Python 3.11+
 - Redis
-- Expo Go app on your phone (for mobile testing)
+- Expo Go app (for mobile testing)
+- Daytona API key (from https://app.daytona.io)
+- Anthropic API key
 
 ## Quick Start
 
@@ -29,18 +64,18 @@ pip install -e .
 
 **Frontend** (`frontend/.env`):
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://gxgbkxheqoxaxmebujao.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_FzcyzO6bz-zOXHrm1RpiHg_Q3095C9E
+EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 EXPO_PUBLIC_API_URL=http://localhost:8000
 ```
 
 **Backend** (`backend/.env`):
 ```
-DEBUG=true
-SUPABASE_URL=https://gxgbkxheqoxaxmebujao.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_FzcyzO6bz-zOXHrm1RpiHg_Q3095C9E
-SUPABASE_SERVICE_KEY=<get from team lead>
-ANTHROPIC_API_KEY=<get from team lead>
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+SUPABASE_SERVICE_KEY=<service role key>
+ANTHROPIC_API_KEY=<your key>
+DAYTONA_API_KEY=<your key>
 REDIS_URL=redis://localhost:6379
 ```
 
@@ -50,9 +85,6 @@ REDIS_URL=redis://localhost:6379
 # macOS
 brew services start redis
 
-# Linux
-sudo systemctl start redis
-
 # Docker
 docker run -d -p 6379:6379 redis
 ```
@@ -61,13 +93,11 @@ docker run -d -p 6379:6379 redis
 
 ```bash
 # Terminal 1: Backend API
-cd backend
-source .venv/bin/activate
+cd backend && source .venv/bin/activate
 uvicorn app.main:app --reload
 
-# Terminal 2: Background Worker
-cd backend
-source .venv/bin/activate
+# Terminal 2: Worker (Two-Agent System)
+cd backend && source .venv/bin/activate
 python -m app.agents.worker
 
 # Terminal 3: Frontend
@@ -75,36 +105,60 @@ cd frontend
 npx expo start
 ```
 
-Scan the QR code with Expo Go to run on your phone.
+## How It Works
+
+1. **User submits prompt** → "Make a calculator app"
+
+2. **Project Manager Agent** (runs on backend):
+   - Analyzes the request
+   - Creates detailed implementation plan
+   - Delegates via `<developer_task>` tags
+
+3. **Developer Agent** (runs in Daytona sandbox):
+   - Uses Claude Agent SDK
+   - Creates files, runs commands
+   - Starts server on port 80
+   - Returns preview URL
+
+4. **Review Loop**:
+   - Project Manager reviews output
+   - Requests fixes if needed
+   - Marks complete when app is live
+
+5. **Result**: Live app URL returned to user
 
 ## Project Structure
 
 ```
-frontend/          React Native (Expo)
-├── app/           Screens (Feed, Create, Profile)
-├── components/    Reusable components
-└── lib/           API client, stores, types
+frontend/              React Native (Expo)
+├── app/               Screens (Feed, Create, Profile)
+├── components/        Reusable components
+└── lib/               API client, stores
 
-backend/           Python FastAPI
-├── app/api/       REST endpoints
-├── app/agents/    Claude AI agents
-└── app/services/  Business logic
+backend/               Python FastAPI
+├── app/api/           REST endpoints
+├── app/agents/
+│   ├── project_manager.py   # Orchestrator agent
+│   ├── daytona_sandbox.py   # Sandbox management
+│   ├── sandbox_agent.py     # Code for Developer Agent
+│   └── worker.py            # Job processor
+└── app/services/      Business logic
 
-supabase/          Database migrations
+supabase/              Database migrations
 ```
 
 ## Key Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/v1/apps` | List published apps |
 | `POST /api/v1/apps` | Create app from prompt |
-| `WS /ws/generation/{job_id}` | Real-time generation updates |
+| `GET /api/v1/apps` | List published apps |
+| `WS /ws/generation/{job_id}` | Real-time updates |
 
 ## Troubleshooting
 
-**Redis connection error**: Make sure Redis is running on port 6379
+**Daytona errors**: Ensure `DAYTONA_API_KEY` is set correctly
 
-**JWT errors**: The backend auto-fetches public keys from Supabase JWKS endpoint
+**Redis connection**: Make sure Redis is running on port 6379
 
-**Expo not connecting**: Use `npx expo start --tunnel` if on different network
+**Sandbox timeout**: Generation can take 1-3 minutes for complex apps

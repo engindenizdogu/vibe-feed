@@ -1,4 +1,17 @@
-"""Worker for processing generation jobs."""
+"""
+Worker for processing generation jobs using the Two-Agent Architecture.
+
+Architecture:
+1. Project Manager Agent (runs here) - Orchestrates the generation
+2. Developer Agent (runs in Daytona sandbox) - Executes code
+
+Flow:
+1. User submits prompt
+2. Project Manager analyzes and delegates to Developer Agent
+3. Developer Agent creates app in sandbox
+4. Project Manager reviews and requests fixes if needed
+5. App is deployed and preview URL is returned
+"""
 
 import asyncio
 import traceback
@@ -13,15 +26,15 @@ from ..services.generation import (
     mark_job_completed,
     mark_job_failed,
 )
-from .prompt_analyzer import analyze_prompt
-from .code_generator import generate_code
-from .deploy_manager import deploy_to_daytona
+from .project_manager import ProjectManagerAgent
+from .daytona_sandbox import DaytonaSandboxManager
 
 
 async def process_job(job_id: str) -> None:
-    """Process a single generation job."""
+    """Process a single generation job using the two-agent architecture."""
     settings = get_settings()
     supabase = create_client(settings.supabase_url, settings.supabase_service_key)
+    sandbox_manager = None
 
     try:
         # Get job data
@@ -35,7 +48,7 @@ async def process_job(job_id: str) -> None:
 
         print(f"Processing job {job_id} for app {app_id}")
 
-        # Step 1: Content moderation (placeholder - would use actual moderation API)
+        # Step 1: Content moderation
         await update_job_status(
             job_id,
             status="processing",
@@ -68,102 +81,74 @@ async def process_job(job_id: str) -> None:
             message="Content approved",
         )
 
-        # Step 2: Analyze prompt
+        # Step 2: Create Daytona sandbox
         await update_job_status(
             job_id,
             status="processing",
             step="analyzing",
             percent=15,
-            message="Analyzing your request...",
+            message="Setting up development environment...",
         )
 
-        analysis = await analyze_prompt(prompt)
+        sandbox_manager = DaytonaSandboxManager()
+        preview_url = sandbox_manager.create_sandbox()
 
         await update_job_status(
             job_id,
             status="processing",
             step="analyzing",
             percent=25,
-            message=f"Building a {analysis.intent} using {analysis.tech_stack}",
+            message="Developer Agent ready",
         )
 
-        # Step 3: Generate code
+        # Step 3: Initialize Project Manager and run generation
         supabase.table("apps").update({"status": "generating"}).eq("id", app_id).execute()
 
-        await update_job_status(
-            job_id,
-            status="processing",
-            step="generating",
-            percent=30,
-            message="Generating code...",
+        project_manager = ProjectManagerAgent(settings.anthropic_api_key)
+
+        async def on_progress(step: str, percent: int, message: str):
+            await update_job_status(job_id, status="processing", step=step, percent=percent, message=message)
+
+        # Run the two-agent generation process
+        live_url, full_output = await project_manager.process_request(
+            user_prompt=prompt,
+            run_developer_task=sandbox_manager.run_developer_task,
+            on_progress=on_progress,
         )
 
-        generated_app = await generate_code(prompt, analysis)
+        if not live_url:
+            # Fallback to sandbox preview URL if not extracted
+            live_url = preview_url
 
-        await update_job_status(
-            job_id,
-            status="processing",
-            step="generating",
-            percent=60,
-            message=f"Generated {len(generated_app.files)} files",
-        )
-
-        # Store generated code in database
-        files_data = [{"name": f.name, "content": f.content} for f in generated_app.files]
-        supabase.table("apps").update({"source_code": files_data}).eq("id", app_id).execute()
-
-        # Step 4: Deploy
+        # Step 4: Update app with deployment info
         supabase.table("apps").update({"status": "deploying"}).eq("id", app_id).execute()
 
         await update_job_status(
             job_id,
             status="processing",
             step="deploying",
-            percent=70,
-            message="Deploying to cloud...",
+            percent=90,
+            message="Finalizing deployment...",
         )
 
-        deployment = await deploy_to_daytona(generated_app, app_id)
-
-        await update_job_status(
-            job_id,
-            status="processing",
-            step="deploying",
-            percent=85,
-            message="Almost there...",
-        )
-
-        # Step 5: Finalize
-        await update_job_status(
-            job_id,
-            status="processing",
-            step="finalizing",
-            percent=95,
-            message="Going live!",
-        )
-
-        # Update app with deployment info
+        # Store the generation output and live URL
         supabase.table("apps").update(
             {
                 "status": "live",
-                "live_url": deployment.live_url,
-                "daytona_workspace_id": deployment.workspace_id,
-                "title": analysis.title_suggestion,
-                "description": analysis.description,
+                "live_url": live_url,
+                "daytona_workspace_id": sandbox_manager.sandbox.id if sandbox_manager.sandbox else None,
             }
         ).eq("id", app_id).execute()
-
-        # TODO: Capture screenshot for thumbnail
 
         # Mark as completed
         await mark_job_completed(
             job_id,
             app_id=app_id,
-            live_url=deployment.live_url,
-            thumbnail_url=None,  # Would be set after screenshot capture
+            live_url=live_url,
+            thumbnail_url=None,
         )
 
-        print(f"Job {job_id} completed successfully")
+        print(f"Job {job_id} completed successfully. App live at: {live_url}")
 
     except Exception as e:
         print(f"Job {job_id} failed: {e}")
@@ -186,10 +171,19 @@ async def process_job(job_id: str) -> None:
         except Exception:
             pass
 
+    finally:
+        # Clean up sandbox (but keep it running for the app)
+        # Note: We don't delete the sandbox here because the app needs to stay live
+        # Sandboxes will be cleaned up when apps are deleted or via scheduled cleanup
+        pass
+
 
 async def run_worker() -> None:
     """Main worker loop - processes jobs from the queue."""
-    print("Starting generation worker...")
+    print("=" * 50)
+    print("Starting Slop Feed Generation Worker")
+    print("Two-Agent Architecture: Project Manager + Developer Agent")
+    print("=" * 50)
 
     r = await get_redis()
 
@@ -201,6 +195,9 @@ async def run_worker() -> None:
             if result:
                 _, job_id = result
                 job_id = job_id.decode()
+                print(f"\n{'='*50}")
+                print(f"New job received: {job_id}")
+                print(f"{'='*50}")
                 await process_job(job_id)
 
         except Exception as e:

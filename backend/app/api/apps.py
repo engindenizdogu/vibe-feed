@@ -38,10 +38,10 @@ async def list_apps(
     """List published apps for the feed."""
     offset = (page - 1) * limit
 
-    # Get apps with user info
+    # Get apps with user info (explicitly use the apps_user_id_fkey relationship)
     result = (
         supabase.table("apps")
-        .select("*, users(username, avatar_url)")
+        .select("*, users!apps_user_id_fkey(username, avatar_url)")
         .eq("is_published", True)
         .order("created_at", desc=True)
         .range(offset, offset + limit)
@@ -85,7 +85,7 @@ async def get_app(
     """Get a single app by ID."""
     result = (
         supabase.table("apps")
-        .select("*, users(username, avatar_url)")
+        .select("*, users!apps_user_id_fkey(username, avatar_url)")
         .eq("id", app_id)
         .single()
         .execute()
@@ -190,7 +190,7 @@ async def publish_app(
             }
         )
         .eq("id", app_id)
-        .select("*, users(username, avatar_url)")
+        .select("*, users!apps_user_id_fkey(username, avatar_url)")
         .single()
         .execute()
     )

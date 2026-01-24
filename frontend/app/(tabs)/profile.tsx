@@ -6,8 +6,9 @@ import {
   Image,
   Pressable,
   ScrollView,
-  FlatList,
-  Alert,
+  TextInput,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,11 +20,20 @@ import { supabase } from '../../lib/supabase';
 import type { App } from '../../lib/types';
 
 type TabType = 'apps' | 'favorites';
+type AuthMode = 'signin' | 'signup';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [activeTab, setActiveTab] = useState<TabType>('apps');
+
+  // Auth form state
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const { data: userApps = [] } = useQuery({
     queryKey: ['userApps', user?.id],
@@ -32,111 +42,162 @@ export default function ProfileScreen() {
   });
 
   const handleLogin = async () => {
-    // For now, just show a placeholder login flow
-    Alert.prompt(
-      'Sign In',
-      'Enter your email:',
-      async (email) => {
-        if (!email) return;
-        Alert.prompt(
-          'Sign In',
-          'Enter your password:',
-          async (password) => {
-            if (!password) return;
-            try {
-              const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-              });
-              if (error) throw error;
-            } catch (err) {
-              Alert.alert('Error', err instanceof Error ? err.message : 'Sign in failed');
-            }
-          },
-          'secure-text'
-        );
-      },
-      'email-address'
-    );
+    if (!email || !password) {
+      setAuthError('Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      // Clear form on success
+      setEmail('');
+      setPassword('');
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Sign in failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignUp = async () => {
-    Alert.prompt(
-      'Sign Up',
-      'Enter your email:',
-      async (email) => {
-        if (!email) return;
-        Alert.prompt(
-          'Sign Up',
-          'Create a password:',
-          async (password) => {
-            if (!password) return;
-            Alert.prompt(
-              'Sign Up',
-              'Choose a username:',
-              async (username) => {
-                if (!username) return;
-                try {
-                  const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                      data: { username },
-                    },
-                  });
-                  if (error) throw error;
-                  Alert.alert('Success', 'Check your email to verify your account!');
-                } catch (err) {
-                  Alert.alert('Error', err instanceof Error ? err.message : 'Sign up failed');
-                }
-              },
-              'plain-text'
-            );
-          },
-          'secure-text'
-        );
-      },
-      'email-address'
-    );
+    if (!email || !password || !username) {
+      setAuthError('Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username },
+        },
+      });
+      if (error) throw error;
+      setAuthError(null);
+      // Show success message
+      if (Platform.OS === 'web') {
+        window.alert('Check your email to verify your account!');
+      }
+      // Clear form
+      setEmail('');
+      setPassword('');
+      setUsername('');
+      setAuthMode('signin');
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Sign up failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.auth.signOut();
-        },
-      },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to sign out?')) {
+        await supabase.auth.signOut();
+      }
+    } else {
+      // For native, we'd use Alert.alert but keeping it simple
+      await supabase.auth.signOut();
+    }
   };
 
   const handleAppPress = (app: App) => {
     router.push(`/app/${app.id}`);
   };
 
-  // Not logged in
+  // Not logged in - show auth form
   if (!user) {
     return (
-      <View style={styles.container}>
-        <View style={styles.authContainer}>
-          <Ionicons name="person-circle" size={80} color={Colors.textMuted} />
-          <Text style={styles.authTitle}>Welcome to Slop Feed</Text>
-          <Text style={styles.authSubtitle}>
-            Sign in to create and share AI-generated apps
-          </Text>
+      <ScrollView style={styles.container} contentContainerStyle={styles.authContainer}>
+        <Ionicons name="person-circle" size={80} color={Colors.textMuted} />
+        <Text style={styles.authTitle}>
+          {authMode === 'signin' ? 'Welcome Back' : 'Create Account'}
+        </Text>
+        <Text style={styles.authSubtitle}>
+          {authMode === 'signin'
+            ? 'Sign in to create and share AI-generated apps'
+            : 'Join Slop Feed to start creating'}
+        </Text>
 
-          <Pressable style={styles.primaryButton} onPress={handleLogin}>
-            <Text style={styles.primaryButtonText}>Sign In</Text>
+        {authError && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{authError}</Text>
+          </View>
+        )}
+
+        <View style={styles.formContainer}>
+          {authMode === 'signup' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Username"
+              placeholderTextColor={Colors.textMuted}
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={Colors.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={Colors.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <Pressable
+            style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+            onPress={authMode === 'signin' ? handleLogin : handleSignUp}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.text} />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+              </Text>
+            )}
           </Pressable>
 
-          <Pressable style={styles.secondaryButton} onPress={handleSignUp}>
-            <Text style={styles.secondaryButtonText}>Create Account</Text>
+          <Pressable
+            style={styles.switchButton}
+            onPress={() => {
+              setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+              setAuthError(null);
+            }}
+          >
+            <Text style={styles.switchButtonText}>
+              {authMode === 'signin'
+                ? "Don't have an account? Sign Up"
+                : 'Already have an account? Sign In'}
+            </Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -303,7 +364,43 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     textAlign: 'center',
     marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+  },
+  errorContainer: {
+    backgroundColor: Colors.error + '20',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    width: '100%',
+  },
+  errorText: {
+    color: Colors.error,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  formContainer: {
+    width: '100%',
+    gap: Spacing.md,
+  },
+  input: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    color: Colors.text,
+    fontSize: FontSize.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  switchButton: {
+    padding: Spacing.md,
+    alignItems: 'center',
+  },
+  switchButtonText: {
+    color: Colors.primary,
+    fontSize: FontSize.sm,
   },
   primaryButton: {
     backgroundColor: Colors.primary,
@@ -315,20 +412,6 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: Colors.text,
-    fontSize: FontSize.lg,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xxl,
-    width: '100%',
-  },
-  secondaryButtonText: {
-    color: Colors.textSecondary,
     fontSize: FontSize.lg,
     fontWeight: '600',
     textAlign: 'center',
