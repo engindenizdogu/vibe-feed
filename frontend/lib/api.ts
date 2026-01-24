@@ -35,9 +35,9 @@ async function apiRequest<T>(
 }
 
 // Apps
-export async function getApps(page = 1, limit = 20): Promise<{ apps: App[]; hasMore: boolean }> {
+export async function getApps(page = 1, limit = 20, includeLive = true): Promise<{ apps: App[]; hasMore: boolean }> {
   try {
-    const result = await apiRequest(`/api/v1/apps?page=${page}&limit=${limit}`);
+    const result = await apiRequest(`/api/v1/apps?page=${page}&limit=${limit}&include_live=${includeLive}`);
     console.log('API Response:', result);
     return result;
   } catch (error) {
@@ -62,6 +62,21 @@ export interface CreateAppResponse {
 
 export async function createApp(prompt: string): Promise<CreateAppResponse> {
   return apiRequest('/api/v1/apps', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export interface ComplexityAnalysis {
+  complexity_score: number;
+  complexity_label: string;
+  complexity_color: string;
+  detected_features: string[];
+  feature_count: number;
+}
+
+export async function analyzeComplexity(prompt: string): Promise<ComplexityAnalysis> {
+  return apiRequest('/api/v1/apps/analyze-complexity', {
     method: 'POST',
     body: JSON.stringify({ prompt }),
   });

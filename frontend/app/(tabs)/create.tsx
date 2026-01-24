@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,8 @@ if (Platform.OS !== 'web') {
 import { useRouter } from 'expo-router';
 import { Colors, Spacing, BorderRadius, FontSize, Fonts } from '../../constants/theme';
 import { useCreateStore, useAuthStore } from '../../lib/stores';
-import { createApp, publishApp } from '../../lib/api';
-import type { CreateAppResponse } from '../../lib/api';
+import { createApp, publishApp, analyzeComplexity } from '../../lib/api';
+import type { CreateAppResponse, ComplexityAnalysis } from '../../lib/api';
 
 const GENERATION_STEPS = [
   { key: 'moderation', label: 'Checking prompt...' },
@@ -50,6 +50,32 @@ export default function CreateScreen() {
     setError,
     reset,
   } = useCreateStore();
+
+  // Complexity analysis state
+  const [complexity, setComplexity] = useState<ComplexityAnalysis | null>(null);
+  const [analyzingComplexity, setAnalyzingComplexity] = useState(false);
+
+  // Debounced complexity analysis
+  useEffect(() => {
+    if (!prompt.trim()) {
+      setComplexity(null);
+      return;
+    }
+
+    setAnalyzingComplexity(true);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await analyzeComplexity(prompt);
+        setComplexity(result);
+      } catch (error) {
+        console.error('Failed to analyze complexity:', error);
+      } finally {
+        setAnalyzingComplexity(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [prompt]);
 
   const handleGenerate = useCallback(async () => {
     console.log('Generate clicked, prompt:', prompt, 'user:', user);
@@ -208,6 +234,47 @@ export default function CreateScreen() {
               maxLength={1000}
             />
             <Text style={styles.charCount}>{prompt.length}/1000</Text>
+
+            {/* Complexity Estimation Bar */}
+            {prompt.length > 0 && (
+              <View style={styles.complexityContainer}>
+                <View style={styles.complexityHeader}>
+                  <Text style={styles.complexityLabel}>Estimated Complexity</Text>
+                  {complexity && (
+                    <View style={styles.complexityBadge}>
+                      <Text style={[styles.complexityBadgeText, { color: complexity.complexity_color }]}>
+                        {complexity.complexity_label}
+                      </Text>
+                      <Text style={styles.complexityScore}> • {complexity.complexity_score}%</Text>
+                    </View>
+                  )}
+                  {analyzingComplexity && (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  )}
+                </View>
+                {complexity && (
+                  <>
+                    <View style={styles.complexityBarContainer}>
+                      <View
+                        style={[
+                          styles.complexityBarFill,
+                          {
+                            width: `${complexity.complexity_score}%`,
+                            backgroundColor: complexity.complexity_color,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.complexityHint}>
+                      {complexity.complexity_score < 20 && 'Quick to generate'}
+                      {complexity.complexity_score >= 20 && complexity.complexity_score < 45 && 'May take a few moments'}
+                      {complexity.complexity_score >= 45 && complexity.complexity_score < 70 && 'This will take some time'}
+                      {complexity.complexity_score >= 70 && 'Complex app - patience required'}
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
           <Pressable
@@ -441,6 +508,55 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     textAlign: 'right',
     marginTop: Spacing.xs,
+  },
+  complexityContainer: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  complexityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  complexityLabel: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.medium,
+  },
+  complexityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  complexityBadgeText: {
+    fontSize: FontSize.sm,
+    fontFamily: Fonts.semibold,
+  },
+  complexityScore: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontFamily: Fonts.regular,
+  },
+  complexityBarContainer: {
+    height: 8,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: Spacing.sm,
+  },
+  complexityBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  complexityHint: {
+    color: Colors.textMuted,
+    fontSize: FontSize.xs,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   generateButton: {
     backgroundColor: Colors.primary,

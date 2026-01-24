@@ -18,6 +18,7 @@ from ..models.schemas import (
 )
 from ..services.agents import analyze_vibe, generate_code
 from ..services.daytona_manager import daytona_manager
+from ..services.complexity_analyzer import analyze_complexity
 
 router = APIRouter(prefix="/apps", tags=["apps"])
 
@@ -50,15 +51,23 @@ async def list_apps(
     current_user: Annotated[Optional[dict], Depends(get_optional_user)],
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=50),
+    include_live: bool = Query(False, description="Include unpublished live apps"),
 ):
-    """List published apps for the feed."""
+    """List apps for the feed. By default only published apps, optionally include all live apps."""
     offset = (page - 1) * limit
 
-    # Get apps with user info
+    # Build query
+    query = supabase.table("apps").select("*, users!apps_user_id_fkey(username, avatar_url)")
+
+    if include_live:
+        # Show all live apps (published or not)
+        query = query.eq("status", "live")
+    else:
+        # Show only published apps
+        query = query.eq("is_published", True)
+
     result = (
-        supabase.table("apps")
-        .select("*, users!apps_user_id_fkey(username, avatar_url)")
-        .eq("is_published", True)
+        query
         .order("created_at", desc=True)
         .range(offset, offset + limit)
         .execute()
@@ -358,3 +367,19 @@ async def unlike_app(
         supabase.rpc("decrement_likes", {"app_id": app_id}).execute()
 
     return {"status": "unliked"}
+
+
+@router.post("/analyze-complexity")
+async def analyze_prompt_complexity(data: AppCreate):
+    """
+    Analyze the complexity of an app idea without creating it.
+
+    Returns:
+        - complexity_score: 0-100
+        - complexity_label: Simple/Moderate/Complex/Very Complex
+        - complexity_color: Hex color for UI
+        - detected_features: List of detected features
+        - feature_count: Number of features detected
+    """
+    result = analyze_complexity(data.prompt)
+    return result
