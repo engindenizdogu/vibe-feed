@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User, App, CreateScreenState, GenerationProgress } from './types';
 
 interface AuthStore {
@@ -14,6 +16,24 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setUser: (user) => set({ user }),
   setLoading: (isLoading) => set({ isLoading }),
 }));
+
+interface OnboardingStore {
+  hasSeenOnboarding: boolean;
+  setHasSeenOnboarding: (value: boolean) => void;
+}
+
+export const useOnboardingStore = create<OnboardingStore>()(
+  persist(
+    (set) => ({
+      hasSeenOnboarding: false,
+      setHasSeenOnboarding: (value) => set({ hasSeenOnboarding: value }),
+    }),
+    {
+      name: 'onboarding-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
 
 interface CreateStore {
   prompt: string;
