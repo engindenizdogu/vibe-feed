@@ -18,6 +18,7 @@ from ..models.schemas import (
 )
 from ..services.agents import analyze_vibe, generate_code
 from ..services.daytona_manager import daytona_manager
+from ..services.complexity_analyzer import analyze_complexity
 
 router = APIRouter(prefix="/apps", tags=["apps"])
 
@@ -358,3 +359,19 @@ async def unlike_app(
         supabase.rpc("decrement_likes", {"app_id": app_id}).execute()
 
     return {"status": "unliked"}
+
+
+@router.post("/analyze-complexity")
+async def analyze_prompt_complexity(data: AppCreate):
+    """
+    Analyze the complexity of an app idea without creating it.
+
+    Returns:
+        - complexity_score: 0-100
+        - complexity_label: Simple/Moderate/Complex/Very Complex
+        - complexity_color: Hex color for UI
+        - detected_features: List of detected features
+        - feature_count: Number of features detected
+    """
+    result = analyze_complexity(data.prompt)
+    return result

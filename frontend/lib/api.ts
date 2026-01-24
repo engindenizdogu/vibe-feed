@@ -67,6 +67,21 @@ export async function createApp(prompt: string): Promise<CreateAppResponse> {
   });
 }
 
+export interface ComplexityAnalysis {
+  complexity_score: number;
+  complexity_label: string;
+  complexity_color: string;
+  detected_features: string[];
+  feature_count: number;
+}
+
+export async function analyzeComplexity(prompt: string): Promise<ComplexityAnalysis> {
+  return apiRequest('/api/v1/apps/analyze-complexity', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  });
+}
+
 export async function publishApp(id: string, title: string, description?: string): Promise<App> {
   return apiRequest(`/api/v1/apps/${id}/publish`, {
     method: 'POST',
