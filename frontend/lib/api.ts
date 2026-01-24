@@ -35,9 +35,9 @@ async function apiRequest<T>(
 }
 
 // Apps
-export async function getApps(page = 1, limit = 20): Promise<{ apps: App[]; hasMore: boolean }> {
+export async function getApps(page = 1, limit = 20, includeLive = true): Promise<{ apps: App[]; hasMore: boolean }> {
   try {
-    const result = await apiRequest(`/api/v1/apps?page=${page}&limit=${limit}`);
+    const result = await apiRequest(`/api/v1/apps?page=${page}&limit=${limit}&include_live=${includeLive}`);
     console.log('API Response:', result);
     return result;
   } catch (error) {

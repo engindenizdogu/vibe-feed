@@ -50,15 +50,23 @@ async def list_apps(
     current_user: Annotated[Optional[dict], Depends(get_optional_user)],
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=50),
+    include_live: bool = Query(False, description="Include unpublished live apps"),
 ):
-    """List published apps for the feed."""
+    """List apps for the feed. By default only published apps, optionally include all live apps."""
     offset = (page - 1) * limit
 
-    # Get apps with user info
+    # Build query
+    query = supabase.table("apps").select("*, users!apps_user_id_fkey(username, avatar_url)")
+
+    if include_live:
+        # Show all live apps (published or not)
+        query = query.eq("status", "live")
+    else:
+        # Show only published apps
+        query = query.eq("is_published", True)
+
     result = (
-        supabase.table("apps")
-        .select("*, users!apps_user_id_fkey(username, avatar_url)")
-        .eq("is_published", True)
+        query
         .order("created_at", desc=True)
         .range(offset, offset + limit)
         .execute()
