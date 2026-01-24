@@ -240,7 +240,7 @@ export default function FeedScreen() {
   const fetchApps = useCallback(async () => {
     try {
       setError(null);
-      const result = await getApps(1, 100);
+      const result = await getApps(1, 50);
       console.log('Fetched apps:', result);
       setApps(result.apps || []);
     } catch (err) {
