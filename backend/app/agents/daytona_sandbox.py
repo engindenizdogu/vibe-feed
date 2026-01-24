@@ -38,8 +38,10 @@ class DaytonaSandboxManager:
             The preview URL for port 80
         """
         # Create sandbox with Anthropic API key in environment
+        # public=True makes preview URLs accessible without authentication
         params = CreateSandboxFromSnapshotParams(
             language="python",
+            public=True,
             env_vars={
                 "ANTHROPIC_API_KEY": self.anthropic_api_key,
             }
@@ -150,8 +152,10 @@ class AsyncDaytonaSandboxManager:
         """Create a new Daytona sandbox and initialize the Developer Agent."""
         async with self.daytona as daytona:
             # Create sandbox with env vars
+            # public=True makes preview URLs accessible without authentication
             params = CreateSandboxFromSnapshotParams(
                 language="python",
+                public=True,
                 env_vars={
                     "ANTHROPIC_API_KEY": self.anthropic_api_key,
                 }
