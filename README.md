@@ -1,4 +1,4 @@
-# Slop Feed
+# Vibe Feed
 
 AI-generated app platform. Describe an app → Claude builds it → Deploy instantly.
 
