@@ -1,6 +1,6 @@
 # Vibe Feed
 
-AI-generated app platform. Describe an app → Claude builds it → Deploy instantly.
+Vibe Feed is an AI-generated app platform. Describe an app → Claude builds it → Deploy instantly.
 
 ## 1. Problem
 
